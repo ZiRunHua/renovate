@@ -1,0 +1,54 @@
+name: Build custom Renovate image
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  NODE_VERSION: 24
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/renovate
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: ./.github/actions/setup-node
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          os: ${{ runner.os }}
+
+      - name: Build Renovate dist
+        run: pnpm build
+
+      - name: Build Docker image locally
+        run: pnpm build:docker build --tries=3 --args '--load'
+        env:
+          LOG_LEVEL: debug
+
+      - name: Test Docker image
+        run: docker run --rm renovate/renovate --version
+
+      - name: Login to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Tag and push image
+        run: |
+          SHORT_SHA="${GITHUB_SHA::12}"
+
+          docker tag renovate/renovate:latest "${IMAGE_NAME}:latest"
+          docker tag renovate/renovate:latest "${IMAGE_NAME}:${SHORT_SHA}"
+
+          docker push "${IMAGE_NAME}:latest"
+          docker push "${IMAGE_NAME}:${SHORT_SHA}"
