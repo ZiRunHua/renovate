@@ -38,7 +38,9 @@ jobs:
           LOG_LEVEL: debug
 
       - name: Test Docker image
-        run: docker run --rm renovate/renovate --version
+        run: |
+          docker run --rm renovate/renovate --version
+          docker run --rm renovate/renovate:full --version
 
       - name: Login to Docker Hub
         run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
@@ -49,6 +51,10 @@ jobs:
 
           docker tag renovate/renovate:latest "${IMAGE_NAME}:latest"
           docker tag renovate/renovate:latest "${IMAGE_NAME}:${SHORT_SHA}"
+          docker tag renovate/renovate:full "${IMAGE_NAME}:full"
+          docker tag renovate/renovate:full "${IMAGE_NAME}:${SHORT_SHA}-full"
 
           docker push "${IMAGE_NAME}:latest"
           docker push "${IMAGE_NAME}:${SHORT_SHA}"
+          docker push "${IMAGE_NAME}:full"
+          docker push "${IMAGE_NAME}:${SHORT_SHA}-full"
