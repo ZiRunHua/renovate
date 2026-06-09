@@ -541,5 +541,51 @@ describe('modules/datasource/go/base', () => {
         });
       });
     });
+
+    describe('GOINSECURE', () => {
+      afterEach(() => {
+        delete process.env.GOINSECURE;
+      });
+
+      it('uses http:// when module matches GOINSECURE', async () => {
+        process.env.GOINSECURE = 'insecure.example.com/*';
+        const meta =
+          '<meta name="go-import" content="insecure.example.com/module git https://github.com/foo/module">';
+        httpMock
+          .scope('http://insecure.example.com')
+          .get('/module?go-get=1')
+          .reply(200, meta);
+
+        const res = await BaseGoDatasource.getDatasource(
+          'insecure.example.com/module',
+        );
+
+        expect(res).toEqual({
+          datasource: GithubTagsDatasource.id,
+          registryUrl: 'https://github.com',
+          packageName: 'foo/module',
+        });
+      });
+
+      it('uses https:// when module does not match GOINSECURE', async () => {
+        process.env.GOINSECURE = 'other.example.com/*';
+        const meta =
+          '<meta name="go-source" content="secure.example.com/module https://github.com/foo/module/">';
+        httpMock
+          .scope('https://secure.example.com')
+          .get('/module?go-get=1')
+          .reply(200, meta);
+
+        const res = await BaseGoDatasource.getDatasource(
+          'secure.example.com/module',
+        );
+
+        expect(res).toEqual({
+          datasource: GithubTagsDatasource.id,
+          registryUrl: 'https://github.com',
+          packageName: 'foo/module',
+        });
+      });
+    });
   });
 });

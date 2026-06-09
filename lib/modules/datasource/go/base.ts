@@ -2,6 +2,7 @@
 import { GlobalConfig } from '../../../config/global.ts';
 import { logger } from '../../../logger/index.ts';
 import { detectPlatform } from '../../../util/common.ts';
+import { getEnv } from '../../../util/env.ts';
 import * as hostRules from '../../../util/host-rules.ts';
 import { Http } from '../../../util/http/index.ts';
 import { regEx } from '../../../util/regex.ts';
@@ -16,6 +17,7 @@ import { GitTagsDatasource } from '../git-tags/index.ts';
 import { GiteaTagsDatasource } from '../gitea-tags/index.ts';
 import { GithubTagsDatasource } from '../github-tags/index.ts';
 import { GitlabTagsDatasource } from '../gitlab-tags/index.ts';
+import { parseNoproxy } from './goproxy-parser.ts';
 import type { DataSource } from './types.ts';
 
 // TODO: figure out class hierarchy (#10532)
@@ -126,7 +128,9 @@ export class BaseGoDatasource {
     goModule: string,
   ): Promise<DataSource | null> {
     const goModuleUrl = goModule.replace(/\.git(\/[a-z0-9/]*)?$/, '');
-    const pkgUrl = `http://${goModuleUrl}?go-get=1`;
+    const goInsecure = parseNoproxy(getEnv().GOINSECURE);
+    const protocol = goInsecure?.test(goModuleUrl) ? 'http' : 'https';
+    const pkgUrl = `${protocol}://${goModuleUrl}?go-get=1`;
     const { body: html } = await BaseGoDatasource.http.getText(pkgUrl);
 
     const goSourceHeader = BaseGoDatasource.goSourceHeader(html, goModule);
